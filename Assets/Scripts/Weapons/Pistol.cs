@@ -28,6 +28,9 @@ public class Pistol : WeaponBase
         maxRecoilAngle = 14f;
         recoilAngleRecoverySpeed = 15f;
 
+        useReloadAnimation = true;
+        reloadRaiseFraction = 0.06f;
+
         useTracer = true;
         tracerEveryNthShot = 1;
         tracerDuration = 0.08f;

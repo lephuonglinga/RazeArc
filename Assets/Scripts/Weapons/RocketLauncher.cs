@@ -32,6 +32,12 @@ public class RocketLauncher : WeaponBase
         maxRecoilAngle = 30f;
         recoilAngleRecoverySpeed = 12f;
 
+        useReloadAnimation = true;
+        reloadTiltEuler = new Vector3(38f, 0f, 0f);
+        reloadPositionOffset = new Vector3(0f, -0.1f, -0.16f);
+        reloadLowerFraction = 0.26f;
+        reloadRaiseFraction = 0.1f;
+
         useMuzzleFlash = true;
         muzzleFlashParticleCount = 24;
         muzzleFlashDuration = 0.07f;

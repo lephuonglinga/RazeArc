@@ -34,6 +34,15 @@ public abstract class WeaponBase : MonoBehaviour
     public float maxRecoilAngle = 12f;
     public float recoilAngleRecoverySpeed = 16f;
 
+    [Header("Reload Animation")]
+    public bool useReloadAnimation = true;
+    public Vector3 reloadTiltEuler = new Vector3(28f, 0f, 0f);
+    public Vector3 reloadPositionOffset = new Vector3(0f, -0.05f, -0.08f);
+    [Range(0.05f, 0.45f)]
+    public float reloadLowerFraction = 0.22f;
+    [Range(0.05f, 0.45f)]
+    public float reloadRaiseFraction = 0.1f;
+
     [Header("Tracer Settings")]
     public bool useTracer = true;
     public int tracerEveryNthShot = 1;
@@ -134,27 +143,39 @@ public abstract class WeaponBase : MonoBehaviour
 
         if (motionType == WeaponMotionType.Gun)
         {
-            transform.localPosition = Vector3.Lerp(
-                transform.localPosition,
-                originalLocalPosition,
-                kickbackRecoverySpeed * Time.deltaTime
-            );
+            if (!isReloading)
+            {
+                transform.localPosition = Vector3.Lerp(
+                    transform.localPosition,
+                    originalLocalPosition,
+                    kickbackRecoverySpeed * Time.deltaTime
+                );
 
-            currentRecoilAngle = Mathf.MoveTowards(
-                currentRecoilAngle,
-                0f,
-                recoilAngleRecoverySpeed * Time.deltaTime
-            );
+                transform.localRotation = Quaternion.Slerp(
+                    transform.localRotation,
+                    originalLocalRotation,
+                    kickbackRecoverySpeed * Time.deltaTime
+                );
+            }
 
-            Quaternion targetRecoilRotation =
-                originalRecoilPivotLocalRotation *
-                Quaternion.Euler(-currentRecoilAngle, 0f, 0f);
+            if (!isReloading)
+            {
+                currentRecoilAngle = Mathf.MoveTowards(
+                    currentRecoilAngle,
+                    0f,
+                    recoilAngleRecoverySpeed * Time.deltaTime
+                );
 
-            recoilPivot.localRotation = Quaternion.Slerp(
-                recoilPivot.localRotation,
-                targetRecoilRotation,
-                recoilAngleRecoverySpeed * Time.deltaTime
-            );
+                Quaternion targetRecoilRotation =
+                    originalRecoilPivotLocalRotation *
+                    Quaternion.Euler(-currentRecoilAngle, 0f, 0f);
+
+                recoilPivot.localRotation = Quaternion.Slerp(
+                    recoilPivot.localRotation,
+                    targetRecoilRotation,
+                    recoilAngleRecoverySpeed * Time.deltaTime
+                );
+            }
         }
     }
 
@@ -268,7 +289,20 @@ public abstract class WeaponBase : MonoBehaviour
         isReloading = true;
         Debug.Log("Reloading...");
 
-        yield return new WaitForSeconds(reloadTime);
+        if (motionType == WeaponMotionType.Gun && useReloadAnimation)
+        {
+            currentRecoilAngle = 0f;
+            if (recoilPivot != null)
+            {
+                recoilPivot.localRotation = originalRecoilPivotLocalRotation;
+            }
+
+            yield return StartCoroutine(PlayReloadAnimation());
+        }
+        else
+        {
+            yield return new WaitForSeconds(reloadTime);
+        }
 
         int ammoNeeded = magazineSize - currentAmmo;
         int ammoToReload = ConsumeReserveAmmo(ammoNeeded);
@@ -338,7 +372,58 @@ public abstract class WeaponBase : MonoBehaviour
         isReloading = false;
         reloadCancelledThisFrame = true;
 
+        if (motionType == WeaponMotionType.Gun)
+        {
+            transform.localPosition = originalLocalPosition;
+            transform.localRotation = originalLocalRotation;
+        }
+
         Debug.Log("Reload Cancelled");
+    }
+
+    IEnumerator PlayReloadAnimation()
+    {
+        float lowerDuration = Mathf.Max(0.01f, reloadTime * reloadLowerFraction);
+        float raiseDuration = Mathf.Max(0.01f, reloadTime * reloadRaiseFraction);
+        float holdDuration = Mathf.Max(0f, reloadTime - lowerDuration - raiseDuration);
+
+        Vector3 startPosition = transform.localPosition;
+        Quaternion startRotation = transform.localRotation;
+        Vector3 reloadPosition = originalLocalPosition + reloadPositionOffset;
+        Quaternion reloadRotation =
+            originalLocalRotation * Quaternion.Euler(reloadTiltEuler);
+
+        float t = 0f;
+        while (t < lowerDuration)
+        {
+            t += Time.deltaTime;
+            float progress = t / lowerDuration;
+            transform.localPosition = Vector3.Lerp(startPosition, reloadPosition, progress);
+            transform.localRotation = Quaternion.Slerp(startRotation, reloadRotation, progress);
+            yield return null;
+        }
+
+        transform.localPosition = reloadPosition;
+        transform.localRotation = reloadRotation;
+
+        if (holdDuration > 0f)
+        {
+            yield return new WaitForSeconds(holdDuration);
+        }
+
+        t = 0f;
+        while (t < raiseDuration)
+        {
+            t += Time.deltaTime;
+            float progress = t / raiseDuration;
+            float snapProgress = 1f - Mathf.Pow(1f - Mathf.Clamp01(progress), 3f);
+            transform.localPosition = Vector3.Lerp(reloadPosition, originalLocalPosition, snapProgress);
+            transform.localRotation = Quaternion.Slerp(reloadRotation, originalLocalRotation, snapProgress);
+            yield return null;
+        }
+
+        transform.localPosition = originalLocalPosition;
+        transform.localRotation = originalLocalRotation;
     }
 
     protected void SpawnTracer(Vector3 startPoint, Vector3 endPoint)

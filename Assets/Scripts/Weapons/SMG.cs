@@ -30,6 +30,9 @@ public class SMG : WeaponBase
         maxRecoilAngle = 5.5f;
         recoilAngleRecoverySpeed = 24f;
 
+        useReloadAnimation = true;
+        reloadRaiseFraction = 0.055f;
+
         useTracer = true;
         tracerEveryNthShot = 2;
         tracerDuration = 0.065f;

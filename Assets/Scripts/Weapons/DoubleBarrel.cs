@@ -32,6 +32,9 @@ public class DoubleBarrel : WeaponBase
         kickbackRecoverySpeed = 5.5f;
         recoilAngleRecoverySpeed = 9f;
 
+        useReloadAnimation = true;
+        reloadRaiseFraction = 0.07f;
+
         useTracer = true;
         tracerEveryNthShot = 1;
         tracerDuration = 0.11f;
