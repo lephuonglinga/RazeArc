@@ -20,6 +20,7 @@ public class EnemyAI : MonoBehaviour
     public float idleDuration = 3f;
     public float screamDuration = 2f;
     public float attackRange = 5f;
+    public ParticleSystem muzzleFlash;
 
     [Header("Waypoints system")]
     public List<Transform> waypoints; 
@@ -138,6 +139,7 @@ public class EnemyAI : MonoBehaviour
     void HandleAttack()
     {
         agent.SetDestination(transform.position);
+
         LookAtPlayer();
         if (Vector3.Distance(transform.position, player.position) > attackRange * 1.5f)
         {
