@@ -14,16 +14,42 @@ public class DoubleBarrel : WeaponBase
         base.Awake();
 
         // Weapon identity
+        ammoType = AmmoType.Shell;
         damage = 10f;
         fireRate = 0.8f;
         range = 50f;
 
         magazineSize = 2;
-        reserveAmmo = 20;
+        reserveAmmo = 10;
         reloadTime = 2.5f;
 
-        recoilMin = new Vector3(-2f, -30f, 0f);
-        recoilMax = new Vector3(2f, -40f, 0f);
+        recoilMin = new Vector3(-4f, -60f, 0f);
+        recoilMax = new Vector3(4f, -80f, 0f);
+
+        kickbackAmount = 0.48f;
+        recoilKickAngle = 13f;
+        maxRecoilAngle = 40f;
+        kickbackRecoverySpeed = 5.5f;
+        recoilAngleRecoverySpeed = 9f;
+
+        useReloadAnimation = true;
+        reloadRaiseFraction = 0.07f;
+
+        useTracer = true;
+        tracerEveryNthShot = 1;
+        tracerDuration = 0.11f;
+        tracerWidth = 0.11f;
+
+        useMuzzleFlash = true;
+        muzzleFlashParticleCount = 20;
+        muzzleFlashDuration = 0.06f;
+        muzzleFlashSize = 0.28f;
+        muzzleFlashSpeed = 10f;
+        muzzleFlashLightIntensity = 3.8f;
+        muzzleFlashLightRange = 3.2f;
+
+        // Push muzzle FX forward to the shotgun barrel tip.
+        muzzleLocalOffset = new Vector3(0f, 0.02f, 0.9f);
     }
 
     protected override void Fire()
@@ -32,6 +58,9 @@ public class DoubleBarrel : WeaponBase
 
         Camera camera = Camera.main;
         Ray centerRay = camera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Vector3 tracerStart = GetTracerStartPosition(centerRay);
+        Vector3 tracerEndPoint = centerRay.origin + centerRay.direction * range;
+        bool hitSomething = false;
 
         for (int i = 0; i < pelletCount; i++)
         {
@@ -44,12 +73,20 @@ public class DoubleBarrel : WeaponBase
 
             if (Physics.Raycast(ray, out hit, range, shootMask))
             {
+                if (!hitSomething)
+                {
+                    tracerEndPoint = hit.point;
+                    hitSomething = true;
+                }
+
                 if (hit.collider.TryGetComponent<IDamageable>(out var damageable))
                 {
                     damageable.TakeDamage(damage);
                 }
             }
         }
+
+        SpawnTracer(tracerStart, tracerEndPoint);
     }
 
     Vector3 GetSpreadDirection(Vector3 baseDirection)
