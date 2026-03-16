@@ -60,6 +60,25 @@ public abstract class WeaponBase : MonoBehaviour
     public float reloadBobMultiplier = 0.08f;
     public float firingBobSuppressDuration = 0.08f;
 
+    [Header("Airborne Motion")]
+    public bool useAirborneMotion = true;
+    public float airborneBlendSpeed = 8f;
+    public Vector3 jumpPositionOffset = new Vector3(0f, -0.018f, -0.03f);
+    public Vector3 jumpEulerOffset = new Vector3(-5f, 0f, 1.25f);
+    public Vector3 fallPositionOffset = new Vector3(0f, 0.02f, 0.045f);
+    public Vector3 fallEulerOffset = new Vector3(8f, 0f, -2.25f);
+    public float airborneSwayFrequency = 4.8f;
+    public float airborneSwayPosAmplitude = 0.004f;
+    public float airborneSwayRollAmplitude = 1.3f;
+    public float airborneSwayYawAmplitude = 0.65f;
+    public bool useLandingPunch = true;
+    public float landingMinImpactSpeed = 4f;
+    public float landingMaxImpactSpeed = 14f;
+    public Vector3 landingPunchPositionOffset = new Vector3(0f, -0.045f, 0.02f);
+    public Vector3 landingPunchEulerOffset = new Vector3(7.5f, 0f, 2.6f);
+    public float landingPunchDuration = 0.16f;
+    public float landingPunchExponent = 2.4f;
+
     [Header("Reload Animation")]
     public bool useReloadAnimation = true;
     public Vector3 reloadTiltEuler = new Vector3(28f, 0f, 0f);
@@ -170,6 +189,12 @@ public abstract class WeaponBase : MonoBehaviour
     float movementBobTimer;
     float reloadMovementBobTimer;
     float firingBobTimer;
+    float airborneBlend;
+    float airborneSwayTimer;
+    bool wasGroundedLastFrame = true;
+    float lastAirborneVerticalSpeed;
+    float landingPunchTimer;
+    float landingPunchStrength;
     Vector3 bobPositionCurrent;
     Vector3 bobEulerCurrent;
 
@@ -235,6 +260,19 @@ public abstract class WeaponBase : MonoBehaviour
     {
         CacheOriginalPose();
 
+        if (playerMovement != null && playerMovement.bodyController != null)
+        {
+            wasGroundedLastFrame = playerMovement.bodyController.isGrounded;
+        }
+        else
+        {
+            wasGroundedLastFrame = true;
+        }
+
+        lastAirborneVerticalSpeed = 0f;
+        landingPunchTimer = 0f;
+        landingPunchStrength = 0f;
+
         if (reloadPausedWhileHolstered && reloadTriggerType == ReloadTriggerType.AutoEmpty)
         {
             isReloading = true;
@@ -278,6 +316,12 @@ public abstract class WeaponBase : MonoBehaviour
         movementBobTimer = 0f;
         reloadMovementBobTimer = 0f;
         firingBobTimer = 0f;
+        airborneBlend = 0f;
+        airborneSwayTimer = 0f;
+        wasGroundedLastFrame = true;
+        lastAirborneVerticalSpeed = 0f;
+        landingPunchTimer = 0f;
+        landingPunchStrength = 0f;
         bobPositionCurrent = Vector3.zero;
         bobEulerCurrent = Vector3.zero;
 
@@ -313,12 +357,16 @@ public abstract class WeaponBase : MonoBehaviour
             {
                 UpdateFireKickAndBob();
 
+                Vector3 airbornePosition;
+                Vector3 airborneEuler;
+                EvaluateAirborneMotion(out airbornePosition, out airborneEuler);
+
                 Quaternion bobRotation =
-                    originalLocalRotation * Quaternion.Euler(bobEulerCurrent);
+                    originalLocalRotation * Quaternion.Euler(bobEulerCurrent + airborneEuler);
 
                 transform.localPosition = Vector3.Lerp(
                     transform.localPosition,
-                    originalLocalPosition + bobPositionCurrent - (Vector3.forward * kickOffsetImpulse),
+                    originalLocalPosition + bobPositionCurrent + airbornePosition - (Vector3.forward * kickOffsetImpulse),
                     kickbackRecoverySpeed * Time.deltaTime
                 );
 
@@ -775,8 +823,150 @@ public abstract class WeaponBase : MonoBehaviour
         Vector3 bobEuler;
         EvaluateReloadMovementBob(out bobPosition, out bobEuler);
 
-        transform.localPosition = basePosition + bobPosition;
-        transform.localRotation = baseRotation * Quaternion.Euler(bobEuler);
+        Vector3 airbornePosition;
+        Vector3 airborneEuler;
+        EvaluateAirborneMotion(out airbornePosition, out airborneEuler);
+
+        transform.localPosition = basePosition + bobPosition + airbornePosition;
+        transform.localRotation = baseRotation * Quaternion.Euler(bobEuler + airborneEuler);
+    }
+
+    void EvaluateAirborneMotion(out Vector3 airbornePosition, out Vector3 airborneEuler)
+    {
+        airbornePosition = Vector3.zero;
+        airborneEuler = Vector3.zero;
+
+        if (!useAirborneMotion)
+        {
+            airborneBlend = 0f;
+            airborneSwayTimer = 0f;
+            return;
+        }
+
+        if (playerMovement == null || playerMovement.bodyController == null)
+        {
+            airborneBlend = 0f;
+            airborneSwayTimer = 0f;
+            return;
+        }
+
+        CharacterController controller = playerMovement.bodyController;
+        bool isGrounded = controller.isGrounded;
+        float targetBlend = isGrounded ? 0f : 1f;
+        airborneBlend = Mathf.MoveTowards(
+            airborneBlend,
+            targetBlend,
+            Mathf.Max(0.01f, airborneBlendSpeed) * Time.deltaTime
+        );
+
+        if (airborneBlend <= 0f)
+        {
+            airborneSwayTimer = 0f;
+            return;
+        }
+
+        float verticalVelocity = controller.velocity.y;
+        UpdateLandingPunch(isGrounded, verticalVelocity);
+        float jumpWeight = Mathf.Clamp01(verticalVelocity / 6f);
+        float fallWeight = Mathf.Clamp01(-verticalVelocity / 10f);
+        float apexWeight = Mathf.Clamp01(1f - jumpWeight - fallWeight);
+
+        Vector3 basePositionOffset =
+            (jumpPositionOffset * jumpWeight)
+            + (fallPositionOffset * (fallWeight + (apexWeight * 0.35f)));
+
+        Vector3 baseEulerOffset =
+            (jumpEulerOffset * jumpWeight)
+            + (fallEulerOffset * (fallWeight + (apexWeight * 0.35f)));
+
+        if (!isGrounded)
+        {
+            airborneSwayTimer += Time.deltaTime * Mathf.Max(0.1f, airborneSwayFrequency);
+        }
+
+        float sway = Mathf.Sin(airborneSwayTimer);
+        float swayHalf = Mathf.Sin(airborneSwayTimer * 0.5f);
+
+        Vector3 swayPosition = new Vector3(
+            sway * airborneSwayPosAmplitude,
+            0f,
+            0f
+        );
+
+        Vector3 swayEuler = new Vector3(
+            0f,
+            swayHalf * airborneSwayYawAmplitude,
+            sway * airborneSwayRollAmplitude
+        );
+
+        Vector3 landingPunchPosition;
+        Vector3 landingPunchEuler;
+        EvaluateLandingPunchOffsets(out landingPunchPosition, out landingPunchEuler);
+
+        airbornePosition = (basePositionOffset + swayPosition) * airborneBlend + landingPunchPosition;
+        airborneEuler = (baseEulerOffset + swayEuler) * airborneBlend + landingPunchEuler;
+    }
+
+    void UpdateLandingPunch(bool isGrounded, float verticalVelocity)
+    {
+        if (!useLandingPunch)
+        {
+            wasGroundedLastFrame = isGrounded;
+            lastAirborneVerticalSpeed = 0f;
+            landingPunchTimer = 0f;
+            landingPunchStrength = 0f;
+            return;
+        }
+
+        if (!isGrounded)
+        {
+            lastAirborneVerticalSpeed = verticalVelocity;
+        }
+
+        if (!wasGroundedLastFrame && isGrounded)
+        {
+            float impactSpeed = Mathf.Max(0f, -lastAirborneVerticalSpeed);
+            if (impactSpeed >= landingMinImpactSpeed)
+            {
+                landingPunchStrength = Mathf.Clamp01(
+                    Mathf.InverseLerp(
+                        Mathf.Max(0.01f, landingMinImpactSpeed),
+                        Mathf.Max(landingMinImpactSpeed + 0.01f, landingMaxImpactSpeed),
+                        impactSpeed
+                    )
+                );
+                landingPunchTimer = 0f;
+            }
+        }
+
+        wasGroundedLastFrame = isGrounded;
+    }
+
+    void EvaluateLandingPunchOffsets(out Vector3 landingPositionOffset, out Vector3 landingEulerOffset)
+    {
+        landingPositionOffset = Vector3.zero;
+        landingEulerOffset = Vector3.zero;
+
+        if (!useLandingPunch || landingPunchStrength <= 0f)
+        {
+            return;
+        }
+
+        float duration = Mathf.Max(0.01f, landingPunchDuration);
+        float exponent = Mathf.Max(0.1f, landingPunchExponent);
+
+        landingPunchTimer += Time.deltaTime;
+        float t = Mathf.Clamp01(landingPunchTimer / duration);
+        float envelope = Mathf.Pow(1f - t, exponent);
+
+        landingPositionOffset = landingPunchPositionOffset * landingPunchStrength * envelope;
+        landingEulerOffset = landingPunchEulerOffset * landingPunchStrength * envelope;
+
+        if (t >= 1f)
+        {
+            landingPunchStrength = 0f;
+            landingPunchTimer = 0f;
+        }
     }
 
     void EvaluateReloadMovementBob(out Vector3 bobPosition, out Vector3 bobEuler)
