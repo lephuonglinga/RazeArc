@@ -45,7 +45,6 @@ public class DoorController : MonoBehaviour
     private Vector3 startPosition;
     private Vector3 targetPosition;
     private bool isLockedInArena = false;
-    private bool animationActive = false;
 
     private void Start()
     {
@@ -72,9 +71,11 @@ public class DoorController : MonoBehaviour
         if (doorType == DoorType.ArenaEntry && !isLockedInArena && !AreEnemiesDead())
         {
             isLockedInArena = true;
+            CloseDoor();
+            return;
         }
 
-        if (autoClose && !isLockedInArena)
+        if (autoClose)
         {
             CloseDoor();
         }
@@ -82,7 +83,7 @@ public class DoorController : MonoBehaviour
 
     private void Update()
     {
-        if (animationActive && doorMesh != null)
+        if (state != DoorState.Idle && doorMesh != null)
         {
             doorMesh.transform.position = Vector3.MoveTowards(
                 doorMesh.transform.position,
@@ -93,14 +94,7 @@ public class DoorController : MonoBehaviour
             if (doorMesh.transform.position == targetPosition)
             {
                 state = DoorState.Idle;
-                animationActive = false;
             }
-        }
-
-        if (doorType == DoorType.ArenaEntry && isLockedInArena && AreEnemiesDead())
-        {
-            isLockedInArena = false;
-            OpenDoor();
         }
     }
 
@@ -204,7 +198,6 @@ public class DoorController : MonoBehaviour
 
         targetPosition = startPosition + new Vector3(0, slideHeight, 0);
         state = DoorState.Opening;
-        animationActive = true;
     }
 
     private void CloseDoor()
@@ -213,7 +206,6 @@ public class DoorController : MonoBehaviour
 
         targetPosition = startPosition;
         state = DoorState.Closing;
-        animationActive = true;
     }
 
     public void NotifyEnemyDied()
