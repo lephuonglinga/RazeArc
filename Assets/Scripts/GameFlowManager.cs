@@ -82,6 +82,7 @@ public class GameFlowManager : MonoBehaviour
 
     public void NextLevel()
     {
+        Time.timeScale = 1f;
         SceneManager.LoadScene(nextLevelName);
     }
 
