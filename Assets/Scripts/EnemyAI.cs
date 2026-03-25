@@ -4,249 +4,176 @@ using System.Collections.Generic;
 
 public class EnemyAI : MonoBehaviour, IDamageable
 {
-    public enum EnemyState {
+    public enum EnemyState
+    {
         Idle,
         Walk,
         Chase,
         Scream,
-        Attack,    
+        Attack,
         Defeated
     }
 
-    [Header("AI configuration")]
-    public EnemyState currentState;    
-    public float idleDuration = 3f;
+    // ??? AI Config ???????????????????????????????????????????
+    [Header("AI Configuration")]
+    public EnemyState currentState;
+    public float idleDuration = 2f;
     public float screamDuration = 2f;
     public float attackRange = 5f;
-    public ParticleSystem muzzleFlash;
+    public float chaseSpeedMultiplier = 1.5f;
+
+    [Header("References")]
     public EnemyVision vision;
     public Transform player;
-    public float fireRate = 1f;
-    private float nextFireTime;
-    public LayerMask shootMask;
-    public Transform gunMuzzle;
 
+    [Header("Gun (Optional)")]
+    public ParticleSystem muzzleFlash;
+    public Transform gunMuzzle;
+    public float fireRate = 1f;
+    public LayerMask shootMask;
+
+    // ??? Waypoints ???????????????????????????????????????????
+    [Header("Waypoints")]
+    public List<Transform> waypoints;
+
+    // ??? Private ?????????????????????????????????????????????
+    private NavMeshAgent agent;
+    private Animator anim;
     private PlayerMovement playerMovement;
 
-
-    [Header("Waypoints system")]
-    public List<Transform> waypoints; 
-
-    private NavMeshAgent agent;
-    private Animator anim;    
     private float idleTimer;
     private float screamTimer;
-    private bool hasScreamed = false;
+    private float nextFireTime;
     private float health = 100f;
-    private Transform currentTarget;
+    private float baseSpeed;
+    private bool hasScreamed = false;
+    private Transform currentWaypoint;
 
+    // ?????????????????????????????????????????????????????????
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        anim = GetComponent<Animator>();        
-        GoToRandomWaypoint();
+        anim = GetComponent<Animator>();
+        baseSpeed = agent.speed;
 
-        ChangeState(EnemyState.Walk);
-        if(muzzleFlash != null)
-            muzzleFlash.Stop();
+        // Tìm PlayerMovement ?? aim chính xác h?n
+        playerMovement = player.GetComponentInParent<PlayerMovement>()
+                      ?? FindObjectOfType<PlayerMovement>();
 
-        // Set default shoot mask to include player and default layers
-        shootMask = LayerMask.GetMask("Player", "World");
+        // Ragdoll: t?t c? rigidbody con b?t ??u kinematic
+        foreach (Rigidbody rb in GetComponentsInChildren<Rigidbody>())
+            rb.isKinematic = true;
 
-        // Get player movement for accurate targeting
-        playerMovement = player.GetComponent<PlayerMovement>();
-        if (playerMovement == null && player.parent != null)
-        {
-            playerMovement = player.parent.GetComponent<PlayerMovement>();
-        }
-        if (playerMovement == null)
-        {
-            playerMovement = FindObjectOfType<PlayerMovement>();
-        }
-
-        // Add collider if missing
-        if (GetComponent<Collider>() == null)
-        {
-            CapsuleCollider col = gameObject.AddComponent<CapsuleCollider>();
-            col.center = new Vector3(0, 1, 0);
-            col.height = 2;
-            col.radius = 0.5f;
-        }
-
-        // Set layer to Enemy if exists
+        // ??t layer Enemy n?u t?n t?i
         int enemyLayer = LayerMask.NameToLayer("Enemy");
-        if (enemyLayer != -1)
-        {
-            gameObject.layer = enemyLayer;
-        }
+        if (enemyLayer != -1) gameObject.layer = enemyLayer;
+
+        if (muzzleFlash != null) muzzleFlash.Stop();
+
+        GoToRandomWaypoint();
+        ChangeState(EnemyState.Walk);
     }
 
+    // ?????????????????????????????????????????????????????????
     void Update()
-    {        
-        if (health <= 0)
-        {
-            //ChangeState(EnemyState.Defeated);
-            return;
-        }        
-        
+    {
+        if (currentState == EnemyState.Defeated) return;
+
+        // ?? Vision detect m?t l?n duy nh?t m?i frame ??
+        vision.DetectPlayer(player);
+
         switch (currentState)
         {
-            case EnemyState.Idle:
-                Debug.Log("hhh" + currentState.ToString());
-                HandleIdle();
-                break;
-            case EnemyState.Walk: 
-                Debug.Log("hhh" + currentState.ToString());
-                HandleWalk(); 
-                break;
-            case EnemyState.Chase: 
-                Debug.Log("hhh" + currentState.ToString());
-                HandleChase(); 
-                break;
-            case EnemyState.Scream: 
-                Debug.Log("hhh" + currentState.ToString());
-                HandleScream(); 
-                break;
-            case EnemyState.Attack: 
-                Debug.Log("hhh" + currentState.ToString());
-                HandleAttack(); 
-                break;
-            case EnemyState.Defeated:
-                Debug.Log("hhh" + currentState.ToString());
-                HandleDefeated();
-                break;
+            case EnemyState.Idle: HandleIdle(); break;
+            case EnemyState.Walk: HandleWalk(); break;
+            case EnemyState.Scream: HandleScream(); break;
+            case EnemyState.Chase: HandleChase(); break;
+            case EnemyState.Attack: HandleAttack(); break;
         }
-        Debug.Log("See Player: " + vision.canSeePlayer);
     }
 
-    public void ChangeState(EnemyState newState)
+    // ??? State Machine ????????????????????????????????????????
+    void ChangeState(EnemyState newState)
     {
-        if (currentState == newState && newState != EnemyState.Walk) return;
-
-        currentState = newState;        
-
+        if (currentState == newState) return;
+        currentState = newState;
         anim.Play(currentState.ToString());
+
+        // Reset t?c ?? v? m?c ??nh, Chase s? t? set l?i
+        agent.speed = baseSpeed;
     }
 
-    void Shoot()
-    {
-        if (player == null || gunMuzzle == null) return;
-
-        // Target the player's body position if available, otherwise use player transform
-        Vector3 targetPosition = playerMovement != null && playerMovement.bodyController != null 
-            ? playerMovement.bodyController.transform.position 
-            : player.position;
-
-        // Aim slightly higher for better hit chance on capsule collider
-        targetPosition.y += 1f;
-
-        Vector3 directionToPlayer = (targetPosition - gunMuzzle.position).normalized;
-
-        Debug.DrawRay(gunMuzzle.position, directionToPlayer * 100f, Color.red, 1f);
-        RaycastHit hit;
-
-        // Align enemy (optional) and raycast with layer mask like SMG.cs
-        transform.rotation = Quaternion.LookRotation(directionToPlayer) * Quaternion.Euler(0f, 30f, 0f);
-
-        if (Physics.Raycast(gunMuzzle.position, directionToPlayer, out hit, 100f, shootMask))
-        {
-            Debug.Log("ENEMY Hit " + hit.collider.name + " at point " + hit.point + " distance " + hit.distance);
-            Debug.DrawRay(gunMuzzle.position, directionToPlayer * hit.distance, Color.red, 1f);
-
-            if (hit.collider.CompareTag("Player"))
-            {
-                Debug.Log("Hit player!");
-                // apply damage through interface if present
-                if (hit.collider.TryGetComponent<IDamageable>(out var damageable))
-                {
-                    damageable.TakeDamage(10f); // adjust value as needed
-                }
-            }
-        }
-        else
-        {
-            Debug.Log("Enemy raycast: No hit on layers: " + shootMask.value);
-            Debug.DrawRay(gunMuzzle.position, directionToPlayer * 100f, Color.red, 1f);
-        }
-    }
-    
-
-
+    // ??? Handlers ?????????????????????????????????????????????
     void HandleIdle()
     {
-        CheckNearPlayer();
-        
+        // Luôn s?n sàng phát hi?n player khi idle
+        if (ReactToPlayer()) return;
+
         idleTimer += Time.deltaTime;
         if (idleTimer >= idleDuration)
         {
-            idleTimer = 0;
+            idleTimer = 0f;
             GoToRandomWaypoint();
-            ChangeState(EnemyState.Walk);            
+            ChangeState(EnemyState.Walk);
         }
     }
-    public float reachThreshold = 2f;
+
     void HandleWalk()
     {
-        CheckNearPlayer();
-        
-        if (!agent.pathPending && agent.remainingDistance <= 2f && currentTarget.CompareTag("Waypoint"))
-        {
-            Debug.Log("HEHEHEHEHEHE");
-            ChangeState(EnemyState.Idle); 
-        }
-    }
-    void LookAtPlayer()
-    {
-        Vector3 direction = player.position - transform.position;
-        direction.y = 0;
-        if (direction != Vector3.zero)
-        {
-            if(muzzleFlash != null && currentState == EnemyState.Attack)
-                transform.rotation = Quaternion.LookRotation(direction) * Quaternion.Euler(0f, 40f, 0f);
-            else
-                transform.rotation = Quaternion.LookRotation(direction);
-        }
+        // Luôn s?n sàng phát hi?n player khi patrol
+        if (ReactToPlayer()) return;
+
+        if (!agent.pathPending && agent.remainingDistance <= 1.5f)
+            ChangeState(EnemyState.Idle);
     }
 
     void HandleScream()
     {
         agent.isStopped = true;
         LookAtPlayer();
+
         screamTimer += Time.deltaTime;
         if (screamTimer >= screamDuration)
         {
-            screamTimer = 0;
-            FinishScream();
-        }             
-    }
-    
-    void FinishScream()
-    {
-        hasScreamed = true;
-        agent.isStopped = false;
-        ChangeState(EnemyState.Chase);
+            screamTimer = 0f;
+            hasScreamed = true;
+            agent.isStopped = false;
+            ChangeState(EnemyState.Chase);
+        }
     }
 
     void HandleChase()
     {
+        agent.speed = baseSpeed * chaseSpeedMultiplier;
         agent.SetDestination(player.position);
-        //agent.speed = agent.speed * 1.5f; // increase speed for chasing
 
-        vision.DetectPlayer(player);
         if (!vision.canSeePlayer)
         {
+            agent.speed = baseSpeed;
+            GoToRandomWaypoint();
             ChangeState(EnemyState.Walk);
+            return;
         }
+
         if (Vector3.Distance(transform.position, player.position) <= attackRange)
-        {
             ChangeState(EnemyState.Attack);
-        }
     }
 
     void HandleAttack()
     {
-        if (muzzleFlash != null)
-        {            
+        agent.SetDestination(transform.position); // ??ng yên
+        LookAtPlayer();
+
+        // B?n n?u có súng
+        if (muzzleFlash != null && gunMuzzle != null)
+        {
+            Vector3 targetPos = (playerMovement?.bodyController != null)
+            ? playerMovement.bodyController.transform.position
+            : player.position;
+
+            targetPos.y += 1f; // Aim vào thân ng??i
+            Vector3 dir = (targetPos - gunMuzzle.position).normalized;
+            transform.rotation = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 30f, 0f);
             if (Time.time >= nextFireTime)
             {
                 muzzleFlash.Play();
@@ -257,50 +184,108 @@ public class EnemyAI : MonoBehaviour, IDamageable
             {
                 muzzleFlash.Stop();
             }
-        }        
-        agent.SetDestination(transform.position);
+        }
+        else
+        {
+            if (Time.time >= nextFireTime)
+            {
+                Debug.Log("Enemy attacks the player with melee!");
+                player.GetComponent<IDamageable>()?.TakeDamage(10f);
+                nextFireTime = Time.time + 1f / fireRate;
+            }
+        }
 
-        LookAtPlayer();
+        // N?u player ch?y ra xa thì chase l?i
         if (Vector3.Distance(transform.position, player.position) > attackRange * 1.5f)
-        {
             ChangeState(EnemyState.Chase);
-        }
-    }
-    void HandleDefeated()
-    {
-            agent.isStopped = true;
-            // Play defeated animation or effects here            
-    }
 
-        // --- ham ho tro ---
-
-    void CheckNearPlayer()
-    {
-        vision.DetectPlayer(player);
-        if (vision.canSeePlayer)
+        // N?u m?t t?m nhìn thì v? patrol
+        if (!vision.canSeePlayer)
         {
-            if (!hasScreamed) ChangeState(EnemyState.Scream);
-            else ChangeState(EnemyState.Chase);
+            GoToRandomWaypoint();
+            ChangeState(EnemyState.Walk);
         }
+    }
+
+    // ??? Helpers ??????????????????????????????????????????????
+
+    /// <summary>
+    /// G?i ? Idle/Walk ?? ph?n ?ng khi th?y player.
+    /// Tr? v? true n?u ?ã ??i state (?? d?ng x? lý ti?p).
+    /// </summary>
+    bool ReactToPlayer()
+    {
+        if (!vision.canSeePlayer) return false;
+
+        if (!hasScreamed)
+            ChangeState(EnemyState.Scream);
+        else
+            ChangeState(EnemyState.Chase);
+
+        return true;
+    }
+
+    void LookAtPlayer()
+    {
+        Vector3 direction = player.position - transform.position;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+            transform.rotation = Quaternion.LookRotation(direction);
     }
 
     void GoToRandomWaypoint()
     {
-        if (waypoints.Count == 0) return;
-        int index = Random.Range(0, waypoints.Count);
-        currentTarget = waypoints[index];
-        agent.SetDestination(currentTarget.position);
+        if (waypoints == null || waypoints.Count == 0) return;
+        currentWaypoint = waypoints[Random.Range(0, waypoints.Count)];
+        agent.SetDestination(currentWaypoint.position);
     }
 
+    void Shoot()
+    {
+        Vector3 targetPos = (playerMovement?.bodyController != null)
+            ? playerMovement.bodyController.transform.position
+            : player.position;
+
+        targetPos.y += 1f; // Aim vào thân ng??i
+        Vector3 dir = (targetPos - gunMuzzle.position).normalized;
+                
+
+        if (Physics.Raycast(gunMuzzle.position, dir, out RaycastHit hit, 100f, shootMask))
+        {
+            if (hit.collider.CompareTag("Player"))
+            {
+                Debug.Log("Enemy hit the player!");
+                if (hit.collider.TryGetComponent<IDamageable>(out var dmg))
+                    dmg.TakeDamage(10f);
+            }
+        }
+    }
+
+    // ??? IDamageable ??????????????????????????????????????????
     public void TakeDamage(float amount)
     {
-        health -= amount;
-        Debug.Log($"Enemy took {amount} damage, remaining health: {health}");
+        if (currentState == EnemyState.Defeated) return;
 
-        if (health <= 0)
+        health -= amount;
+
+        if (health <= 0f)
         {
-            Debug.Log("Enemy defeated!");
-            Destroy(gameObject);
+            health = 0f;
+            ChangeState(EnemyState.Defeated);
+            HandleDefeated();
+        }
+    }
+
+    void HandleDefeated()
+    {
+        agent.enabled = false;
+        anim.enabled = false;
+
+        // Kích ho?t ragdoll: b? kinematic cho t?t c? rigidbody con
+        foreach (Rigidbody rb in GetComponentsInChildren<Rigidbody>())
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
         }
     }
 }

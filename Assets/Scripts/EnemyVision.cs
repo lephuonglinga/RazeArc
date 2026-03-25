@@ -1,50 +1,32 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class EnemyVision : MonoBehaviour
 {
-    //public Transform player;
     public float viewDistance = 10f;
     public float viewAngle = 60f;
     public LayerMask obstacleMask;
-
-    public bool canSeePlayer;
-
-     void Start()
-    {
-        canSeePlayer = false;
-    }
-
+    public bool canSeePlayer { get; private set; }
 
     public void DetectPlayer(Transform player)
     {
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
         float distanceToPlayer = Vector3.Distance(transform.position, player.position);
 
-        if (distanceToPlayer < viewDistance)
-        {
-            float angle = Vector3.Angle(transform.forward, directionToPlayer);
-            if (angle < viewAngle / 2)
-            {
-                if (!Physics.Raycast(transform.position, directionToPlayer, distanceToPlayer, obstacleMask))
-                {
-                    canSeePlayer = true;
-                }
-                else
-                {
-                    canSeePlayer = false;
-                }
-            }
-            else
-            {
-                canSeePlayer = false;
-            }
-        }
-        else // 
+        if (distanceToPlayer >= viewDistance)
         {
             canSeePlayer = false;
+            return;
         }
+
+        float angle = Vector3.Angle(transform.forward, directionToPlayer);
+        if (angle >= viewAngle / 2f)
+        {
+            canSeePlayer = false;
+            return;
+        }
+
+        // Có v?t c?n không?
+        canSeePlayer = !Physics.Raycast(transform.position, directionToPlayer, distanceToPlayer, obstacleMask);
     }
 
     void OnDrawGizmos()
@@ -52,11 +34,10 @@ public class EnemyVision : MonoBehaviour
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, viewDistance);
 
-        Vector3 leftBoundary = Quaternion.Euler(0, -viewAngle / 2, 0) * transform.forward;
-        Vector3 rightBoundary = Quaternion.Euler(0, viewAngle / 2, 0) * transform.forward;
-
         Gizmos.color = Color.blue;
-        Gizmos.DrawLine(transform.position, transform.position + leftBoundary * viewDistance);
-        Gizmos.DrawLine(transform.position, transform.position + rightBoundary * viewDistance);
+        Vector3 left = Quaternion.Euler(0, -viewAngle / 2f, 0) * transform.forward;
+        Vector3 right = Quaternion.Euler(0, viewAngle / 2f, 0) * transform.forward;
+        Gizmos.DrawLine(transform.position, transform.position + left * viewDistance);
+        Gizmos.DrawLine(transform.position, transform.position + right * viewDistance);
     }
 }
