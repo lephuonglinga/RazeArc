@@ -255,6 +255,7 @@ public abstract class WeaponBase : MonoBehaviour
 
     protected virtual void Start()
     {
+        
         uiManager = FindObjectOfType<InGameUIManager>();
         playerInventory = GetComponentInParent<PlayerInventory>();
         if (playerInventory == null)
@@ -299,7 +300,17 @@ public abstract class WeaponBase : MonoBehaviour
     protected virtual void OnEnable()
     {
         CacheOriginalPose();
+        // 1. Tự động tìm UI nếu chưa tìm thấy (đề phòng OnEnable chạy trước cả Start)
+        if (uiManager == null)
+        {
+            uiManager = FindObjectOfType<InGameUIManager>();
+        }
 
+        // 2. Ép UI cập nhật ngay lập tức số đạn của súng này
+        if (uiManager != null)
+        {
+            uiManager.UpdateAmmo(currentAmmo, magazineSize);
+        }
         if (playerMovement != null && playerMovement.bodyController != null)
         {
             wasGroundedLastFrame = playerMovement.bodyController.isGrounded;
