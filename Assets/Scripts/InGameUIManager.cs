@@ -42,7 +42,8 @@ public class InGameUIManager : MonoBehaviour
 
         if (ammoText != null)
         {
-            originalAmmoTextColor = ammoText.color;
+            originalAmmoTextColor = Color.white;
+            ammoText.color = originalAmmoTextColor;
         }
     }
 
@@ -190,5 +191,25 @@ public class InGameUIManager : MonoBehaviour
             isAmmoFlashing = true;
             ammoFlashTimer = 0f;
         }
+    }
+
+    public void SetAmmoVisible(bool visible)
+    {
+        if (ammoText == null)
+        {
+            return;
+        }
+
+        ammoText.gameObject.SetActive(visible);
+
+        // Reset transient states so old flashing does not persist across weapon swaps.
+        isReloading = false;
+        isAmmoFlashing = false;
+        isWeaponCompletelyEmpty = false;
+        ammoFlashTimer = 0f;
+
+        Color resetColor = originalAmmoTextColor;
+        resetColor.a = 1f;
+        ammoText.color = resetColor;
     }
 }

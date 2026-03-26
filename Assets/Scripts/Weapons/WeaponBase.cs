@@ -309,7 +309,12 @@ public abstract class WeaponBase : MonoBehaviour
         // 2. Ép UI cập nhật ngay lập tức số đạn của súng này
         if (uiManager != null)
         {
-            UpdateAmmoUI();
+            uiManager.SetAmmoVisible(usesAmmo);
+
+            if (usesAmmo)
+            {
+                UpdateAmmoUI();
+            }
         }
         if (playerMovement != null && playerMovement.bodyController != null)
         {
