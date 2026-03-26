@@ -18,6 +18,12 @@ public class RocketProjectile : MonoBehaviour
     public float rocketJumpCenterBonus = 1.8f;
     public float minPlayerForceFalloff = 0.6f;
 
+    [Header("Enemy Ragdoll Blast")]
+    public float enemyRagdollForceMultiplier = 2.8f;
+    public float enemyRagdollUpwardsModifier = 2.6f;
+    public float minEnemyRagdollForceFalloff = 0.55f;
+    public float enemyRagdollTorque = 16f;
+
     [Header("Explosion VFX")]
     public GameObject explosionEffectPrefab;
     public bool useRuntimeExplosionEffect = true;
@@ -158,6 +164,9 @@ public class RocketProjectile : MonoBehaviour
                 }
 
                 damageable.TakeDamage(finalDamage);
+
+                // If an enemy switches to ragdoll on death, this impulse gives a strong rocket-launch reaction.
+                ApplyEnemyRagdollBlast(damageable, explosionPosition, normalizedDistance);
             }
 
             // Player pushback
@@ -221,6 +230,59 @@ public class RocketProjectile : MonoBehaviour
         catch (UnityException)
         {
             return hit.bounds.ClosestPoint(origin);
+        }
+    }
+
+    void ApplyEnemyRagdollBlast(IDamageable damageable, Vector3 explosionPosition, float normalizedDistance)
+    {
+        if (damageable == null || damageable is PlayerInventory)
+        {
+            return;
+        }
+
+        MonoBehaviour damageableBehaviour = damageable as MonoBehaviour;
+        if (damageableBehaviour == null)
+        {
+            return;
+        }
+
+        Rigidbody[] ragdollBodies = damageableBehaviour.GetComponentsInChildren<Rigidbody>(true);
+        if (ragdollBodies == null || ragdollBodies.Length == 0)
+        {
+            return;
+        }
+
+        float distanceForceMultiplier = Mathf.Lerp(
+            1f,
+            Mathf.Clamp01(minEnemyRagdollForceFalloff),
+            Mathf.Clamp01(normalizedDistance)
+        );
+
+        float ragdollForce = explosionForce
+            * Mathf.Max(0f, enemyRagdollForceMultiplier)
+            * distanceForceMultiplier;
+
+        for (int i = 0; i < ragdollBodies.Length; i++)
+        {
+            Rigidbody body = ragdollBodies[i];
+            if (body == null || body.isKinematic)
+            {
+                continue;
+            }
+
+            body.AddExplosionForce(
+                ragdollForce,
+                explosionPosition,
+                explosionRadius,
+                enemyRagdollUpwardsModifier,
+                ForceMode.Impulse
+            );
+
+            if (enemyRagdollTorque > 0f)
+            {
+                Vector3 randomTorque = Random.insideUnitSphere * enemyRagdollTorque;
+                body.AddTorque(randomTorque, ForceMode.Impulse);
+            }
         }
     }
 
