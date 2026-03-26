@@ -213,7 +213,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -93, y: -94}
+  m_AnchoredPosition: {x: -113, y: -54}
   m_SizeDelta: {x: 100, y: 50}
   m_Pivot: {x: 1, y: 0}
 --- !u!222 &1599916794201047712
@@ -271,8 +271,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 32
-  m_fontSizeBase: 32
+  m_fontSize: 26
+  m_fontSizeBase: 26
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -436,3 +436,6 @@ MonoBehaviour:
   healthBarFill: {fileID: 7231468947964042447}
   ammoText: {fileID: 3003998340956236522}
   crosshair: {fileID: 9087752061519105653}
+  lowHealthThreshold: 50
+  maxFlashSpeed: 8
+  minFlashSpeed: 2

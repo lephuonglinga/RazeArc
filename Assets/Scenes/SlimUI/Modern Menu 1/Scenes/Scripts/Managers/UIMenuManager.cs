@@ -44,6 +44,8 @@ namespace SlimUI.ModernMenu{
         public GameObject PanelCombat;
         [Tooltip("The UI Sub-Panel under KEY BINDINGS for GENERAL")]
         public GameObject PanelGeneral;
+
+		public GameObject titleText;  // The title text in the main menu
         
 
         // highlights in settings screen
@@ -120,6 +122,7 @@ namespace SlimUI.ModernMenu{
 		public void PlayCampaign(){
 			exitMenu.SetActive(false);
 			if(extrasMenu) extrasMenu.SetActive(false);
+			if (titleText) titleText.SetActive(true);
 			playMenu.SetActive(true);
 		}
 		
@@ -135,6 +138,7 @@ namespace SlimUI.ModernMenu{
 			if(extrasMenu) extrasMenu.SetActive(false);
 			exitMenu.SetActive(false);
 			mainMenu.SetActive(true);
+			if (titleText) titleText.SetActive(true);
 		}
 
 		public void LoadScene(string scene){
@@ -250,6 +254,7 @@ namespace SlimUI.ModernMenu{
 		public void ExtrasMenu(){
 			playMenu.SetActive(false);
 			if(extrasMenu) extrasMenu.SetActive(true);
+			if (titleText) titleText.SetActive(false);
 			exitMenu.SetActive(false);
 		}
 
