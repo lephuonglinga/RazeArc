@@ -375,6 +375,10 @@ public abstract class WeaponBase : MonoBehaviour
             if (reloadTriggerType == ReloadTriggerType.AutoEmpty)
             {
                 isReloading = false;
+                if (uiManager != null)
+                {
+                    uiManager.SetAmmoReloading(false);
+                }
                 reloadPausedWhileHolstered = true;
                 ResetWeaponPoseAfterReloadStop();
             }
@@ -596,6 +600,10 @@ public abstract class WeaponBase : MonoBehaviour
 
         reloadElapsed = 0f;
         isReloading = true;
+        if (uiManager != null)
+        {
+            uiManager.SetAmmoReloading(true);
+        }
         reloadPausedWhileHolstered = false;
         reloadTriggerType = triggerType;
         ClearFireKickState();
@@ -638,13 +646,13 @@ public abstract class WeaponBase : MonoBehaviour
         int ammoToReload = ConsumeReserveAmmo(ammoNeeded);
         currentAmmo += ammoToReload;
 
+        ResetReloadState();
+
         // <-- THÊM ĐOẠN NÀY ĐỂ BÁO ĐẦY ĐẠN SAU KHI RELOAD
         if (uiManager != null)
         {
             UpdateAmmoUI();
         }
-
-        ResetReloadState();
         Debug.Log("Reloaded. Ammo: " + currentAmmo + "/" + GetReserveAmmoCount());
     }
 
@@ -864,6 +872,10 @@ public abstract class WeaponBase : MonoBehaviour
     void ResetReloadState()
     {
         isReloading = false;
+        if (uiManager != null)
+        {
+            uiManager.SetAmmoReloading(false);
+        }
         reloadPausedWhileHolstered = false;
         reloadElapsed = 0f;
         reloadTriggerType = ReloadTriggerType.None;
