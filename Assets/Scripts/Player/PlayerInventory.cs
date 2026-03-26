@@ -89,16 +89,25 @@ public class PlayerInventory : MonoBehaviour, IDamageable
 
     public void PickUpHealthPack()
     {
-        playerHealth += 10f;
-        Debug.Log($"You have healed 10 health");
+        playerHealth += 30f;
+        Debug.Log($"You have healed 30 health");
 
         if (playerHealth >= playerMaxHealth) 
         {
             playerHealth = playerMaxHealth;
-            Debug.Log("You are full haehtl");
+            Debug.Log("You are full health");
         }
 
         UpdateHealthUI();
+    }
+    
+    public void PickUpAmmoPack()
+    {
+        AddReserveAmmo(AmmoType.Pistol, 12);
+        AddReserveAmmo(AmmoType.SMG, 30);
+        AddReserveAmmo(AmmoType.Shell, 4);
+        AddReserveAmmo(AmmoType.Rocket, 1);
+        Debug.Log("You picked up an ammo pack!");
     }
 
     public void UpdateHealthUI()

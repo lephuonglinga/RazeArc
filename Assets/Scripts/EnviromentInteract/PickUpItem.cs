@@ -6,6 +6,7 @@ public class PickUpItem : MonoBehaviour
 {
     public bool isKeycard = false;
     public bool isHealthPack = false;
+    public bool isAmmoPack = false;
     public string keyColor = "None";
 
     public void OnTriggerEnter(Collider other)
@@ -27,6 +28,13 @@ public class PickUpItem : MonoBehaviour
                 {
                     inventory.PickUpHealthPack();
                     Debug.Log("Picked up Health Pack");
+                    Destroy(gameObject);
+                }
+
+                if (isAmmoPack)
+                {
+                    inventory.PickUpAmmoPack();
+                    Debug.Log("Picked up Ammo Pack");
                     Destroy(gameObject);
                 }
             }

@@ -9,6 +9,7 @@ TagManager:
   - Waypoints
   - Enemy
   - Waypoint
+  - AmmoPack
   layers:
   - Default
   - TransparentFX

@@ -48,6 +48,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   isKeycard: 0
   isHealthPack: 1
+  isAmmoPack: 0
   keyColor: None
 --- !u!65 &7937197979095107747
 BoxCollider:
