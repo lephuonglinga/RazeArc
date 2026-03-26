@@ -21,6 +21,7 @@ public class DummyEnemy : MonoBehaviour, IDamageable
     public void TakeDamage(float amount)
     {
         health -= amount;
+        DamageNumberPopup.Spawn(GetDamagePopupPosition(), amount);
         Debug.Log($"DummyEnemy took {amount} damage, remaining health: {health}");
 
         if (health <= 0)
@@ -28,5 +29,21 @@ public class DummyEnemy : MonoBehaviour, IDamageable
             Debug.Log("DummyEnemy defeated!");
             Destroy(gameObject);
         }
+    }
+
+    Vector3 GetDamagePopupPosition()
+    {
+        Collider targetCollider = GetComponent<Collider>();
+        if (targetCollider == null)
+        {
+            targetCollider = GetComponentInChildren<Collider>();
+        }
+
+        if (targetCollider != null)
+        {
+            return targetCollider.bounds.center + (Vector3.up * targetCollider.bounds.extents.y * 0.8f);
+        }
+
+        return transform.position + Vector3.up * 1.2f;
     }
 }

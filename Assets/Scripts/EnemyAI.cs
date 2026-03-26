@@ -62,7 +62,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
         audioSource = GetComponent<AudioSource>();
         baseSpeed = agent.speed;
 
-        // Tìm PlayerMovement ?? aim chính xác h?n
+        // Tï¿½m PlayerMovement ?? aim chï¿½nh xï¿½c h?n
         playerMovement = player.GetComponentInParent<PlayerMovement>()
                       ?? FindObjectOfType<PlayerMovement>();
 
@@ -112,7 +112,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
     // ??? Handlers ?????????????????????????????????????????????
     void HandleIdle()
     {
-        // Luôn s?n sàng phát hi?n player khi idle
+        // Luï¿½n s?n sï¿½ng phï¿½t hi?n player khi idle
         if (ReactToPlayer()) return;
 
         idleTimer += Time.deltaTime;
@@ -126,7 +126,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
 
     void HandleWalk()
     {
-        // Luôn s?n sàng phát hi?n player khi patrol
+        // Luï¿½n s?n sï¿½ng phï¿½t hi?n player khi patrol
         if (ReactToPlayer()) return;
 
         if (!agent.pathPending && agent.remainingDistance <= 1.5f)
@@ -167,17 +167,17 @@ public class EnemyAI : MonoBehaviour, IDamageable
 
     void HandleAttack()
     {
-        agent.SetDestination(transform.position); // ??ng yên
+        agent.SetDestination(transform.position); // ??ng yï¿½n
         LookAtPlayer();
 
-        // B?n n?u có súng
+        // B?n n?u cï¿½ sï¿½ng
         if (muzzleFlash != null && gunMuzzle != null)
         {
             Vector3 targetPos = (playerMovement?.bodyController != null)
             ? playerMovement.bodyController.transform.position
             : player.position;
 
-            targetPos.y += 1f; // Aim vào thân ng??i
+            targetPos.y += 1f; // Aim vï¿½o thï¿½n ng??i
             Vector3 dir = (targetPos - gunMuzzle.position).normalized;
             transform.rotation = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, 30f, 0f);
             if (Time.time >= nextFireTime)
@@ -201,15 +201,15 @@ public class EnemyAI : MonoBehaviour, IDamageable
                 Debug.Log("Enemy attacks the player with melee!");
                 audioSource.PlayOneShot(shootSound);
                 player.GetComponent<IDamageable>()?.TakeDamage(damageAmount);
-                nextFireTime = Time.time + stateInfo.length; // ch? h?t 1 vòng m?i trigger l?i
+                nextFireTime = Time.time + stateInfo.length; // ch? h?t 1 vï¿½ng m?i trigger l?i
             }
         }
 
-        // N?u player ch?y ra xa thì chase l?i
+        // N?u player ch?y ra xa thï¿½ chase l?i
         if (Vector3.Distance(transform.position, player.position) > attackRange * 1.5f)
             ChangeState(EnemyState.Chase);
 
-        // N?u m?t t?m nhìn thì v? patrol
+        // N?u m?t t?m nhï¿½n thï¿½ v? patrol
         if (!vision.canSeePlayer)
         {
             GoToRandomWaypoint();
@@ -221,7 +221,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
 
     /// <summary>
     /// G?i ? Idle/Walk ?? ph?n ?ng khi th?y player.
-    /// Tr? v? true n?u ?ã ??i state (?? d?ng x? lý ti?p).
+    /// Tr? v? true n?u ?ï¿½ ??i state (?? d?ng x? lï¿½ ti?p).
     /// </summary>
     bool ReactToPlayer()
     {
@@ -257,7 +257,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
             ? playerMovement.bodyController.transform.position
             : player.position;
 
-        targetPos.y += 1f; // Aim vào thân ng??i
+        targetPos.y += 1f; // Aim vï¿½o thï¿½n ng??i
         Vector3 dir = (targetPos - gunMuzzle.position).normalized;
                 
 
@@ -278,6 +278,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
         if (currentState == EnemyState.Defeated) return;
 
         health -= amount;
+        DamageNumberPopup.Spawn(GetDamagePopupPosition(), amount);
 
         if (health <= 0f)
         {
@@ -287,6 +288,22 @@ public class EnemyAI : MonoBehaviour, IDamageable
         }
     }
 
+    Vector3 GetDamagePopupPosition()
+    {
+        Collider targetCollider = GetComponent<Collider>();
+        if (targetCollider == null)
+        {
+            targetCollider = GetComponentInChildren<Collider>();
+        }
+
+        if (targetCollider != null)
+        {
+            return targetCollider.bounds.center + (Vector3.up * targetCollider.bounds.extents.y * 0.8f);
+        }
+
+        return transform.position + Vector3.up * 1.5f;
+    }
+
     void HandleDefeated()
     {
         agent.enabled = false;
@@ -294,7 +311,7 @@ public class EnemyAI : MonoBehaviour, IDamageable
 
         foreach (Rigidbody rb in GetComponentsInChildren<Rigidbody>())
         {
-            // Log t?t c? collider info c?a bone này
+            // Log t?t c? collider info c?a bone nï¿½y
             foreach (Collider col in rb.GetComponentsInChildren<Collider>())
             {
                 if (col is CapsuleCollider cap)
