@@ -23,6 +23,7 @@ public class GameFlowManager : MonoBehaviour
         IsEndScreenOpen = false;
         winPanel.SetActive(false);
         losePanel.SetActive(false);
+        TryShowLevelStartTips();
     }
 
     // Update is called once per frame
@@ -90,5 +91,19 @@ public class GameFlowManager : MonoBehaviour
     {
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    void TryShowLevelStartTips()
+    {
+        if (SceneManager.GetActiveScene().name != "Lv2")
+        {
+            return;
+        }
+
+        TipScreen tipScreen = FindFirstObjectByType<TipScreen>(FindObjectsInactive.Include);
+        if (tipScreen != null)
+        {
+            tipScreen.DisplayTip();
+        }
     }
 }
