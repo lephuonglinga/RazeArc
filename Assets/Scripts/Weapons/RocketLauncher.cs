@@ -16,7 +16,7 @@ public class RocketLauncher : WeaponBase
         isAutomatic = false;
         ammoType = AmmoType.Rocket;
 
-        damage = 130f;
+        damage = 145f;
         fireRate = 1.0f;
         range = 180f;
 

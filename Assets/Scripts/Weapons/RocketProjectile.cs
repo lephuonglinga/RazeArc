@@ -10,12 +10,12 @@ public class RocketProjectile : MonoBehaviour
 
     [Header("Explosion Damage")]
     public float minDamageMultiplierAtEdge = 0.5f;
-    public float playerSelfDamageMultiplier = 0.6f;
-    public float maxSelfDamage = 85f;
+    public float playerSelfDamageMultiplier = 0.3f;
+    public float maxSelfDamage = 45f;
 
     [Header("Rocket Jump")]
-    public float playerExplosionForceMultiplier = 3.2f;
-    public float rocketJumpCenterBonus = 2.1f;
+    public float playerExplosionForceMultiplier = 2.6f;
+    public float rocketJumpCenterBonus = 1.8f;
     public float minPlayerForceFalloff = 0.6f;
 
     [Header("Explosion VFX")]
@@ -53,7 +53,7 @@ public class RocketProjectile : MonoBehaviour
 
     public float speed;
     public float damage;
-    public float explosionRadius = 7.2f;
+    public float explosionRadius = 8.0f;
 
     public LayerMask damageMask;
 
