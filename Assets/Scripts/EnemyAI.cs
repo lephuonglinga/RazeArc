@@ -112,6 +112,15 @@ public class EnemyAI : MonoBehaviour, IDamageable
         currentState = newState;
         anim.Play(currentState.ToString());
 
+        if (currentState == EnemyState.Scream)
+        {
+            screamTimer = 0f;
+            if (audioSourceScream != null && screamSound != null)
+            {
+                audioSourceScream.PlayOneShot(screamSound);
+            }
+        }
+
         // Reset t?c ?? v? m?c ??nh, Chase s? t? set l?i
         agent.speed = baseSpeed;
     }
@@ -144,7 +153,6 @@ public class EnemyAI : MonoBehaviour, IDamageable
     {
         agent.isStopped = true;
         LookAtPlayer();
-        audioSourceScream.PlayOneShot(screamSound);
         screamTimer += Time.deltaTime;
         if (screamTimer >= screamDuration)
         {
